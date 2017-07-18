@@ -1,4 +1,4 @@
-Codebook for tiny/huge number gesture coding
+Codebook for gesture coding
 =============
 
 ## Columns that do not require hand-coding:
@@ -37,9 +37,9 @@ Codebook for tiny/huge number gesture coding
 	- yes: any one hand is moving
 	- no: both hands are not moving
 12.	**WhichHand**<br>
-	- L: left hand is gesturing
-	- R: right hand is gesturing
-	- both: both hands are gesturing
+	- L: left hand is moving
+	- R: right hand is moving
+	- both: both hands are moving
 13.	**HandConfig**<br>
 	- open: the fingers of the gesturing hand are not approaching each other
 	- closed: the fingers of the gesturing hand are approaching each other
@@ -59,28 +59,26 @@ Codebook for tiny/huge number gesture coding
 	- down: the opposite of 'up', palm facing downwards
 	- inward: palm facing sideways, towards the center of the body
 16.	**MovementVertical**<br>
-	- only if HandConfig == 'open'
-	- up: Kendon's palm supine, Müller's PUOH
-
+	- up: whatever hand is specified ('WhichHand') is moving predominantly up
+	- down: whatever hand is specified ('WhichHand') is moving predominantly down
 17.	**MovementHorizontal**<br>
-	- only if HandConfig == 'open'
-	- up: Kendon's palm supine, Müller's PUOH
-
+	- right: whatever hand is specified ('WhichHand') is moving predominantly right
+	- left: whatever hand is specified ('WhichHand') is moving predominantly left
+	- outward: right and left hand are moving away from each other
+	- inward: right and left hand are approaching each other
 18.	**MovementSagittal**<br>
-	- only if HandConfig == 'open'
-	- up: Kendon's palm supine, Müller's PUOH
+	- front: whatever hand is specified ('WhichHand') is moving frontally away from body
+	- back: whatever hand is specified ('WhichHand') is moving frontally towards the body
 19.	**QuantityType**<br>
-	- only if HandConfig == 'open'
-	- up: Kendon's palm supine, Müller's PUOH
+	- percentage: speaker mentions some percentage value ("2%")
+	- proportion: speaker mentions some proportion ("two thirds")
+	- number: speaker mentions some number that isn't percentage or proportion ("2 million")
 20.	**QuantityValue**<br>
-	- only if HandConfig == 'open'
-	- up: Kendon's palm supine, Müller's PUOH
+	- numerical value of the quantity referred to
 21.	**VerbatimReferent**<br>
-	- only if HandConfig == 'open'
-	- up: Kendon's palm supine, Müller's PUOH
+	- the exact phrasing used to describe the referent that is quantified
 22.	**QuantityContrast**<br>
-	- only if HandConfig == 'open'
-	- up: Kendon's palm supine, Müller's PUOH
+	- yes: the relevant phrase is contrasted with some other quantity in local context
+	- no: the relevant phrase is stand-alone
 23.	**Comment**<br>
-	- only if HandConfig == 'open'
-	- up: Kendon's palm supine, Müller's PUOH
+	- add any comments or ideas; also whether the particular video is worth discussing qualitatively in detail
