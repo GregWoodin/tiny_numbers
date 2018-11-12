@@ -1,0 +1,693 @@
+---
+title: "Tiny numbers are actually tiny"
+author: "Greg Woodin, Bodo Winter, Marcus Perlman, Teenie Matlock"
+date: "09/11/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This is the code used for the analysis reported in 'Tiny numbers are actually tiny: Precision grips and size-based quantity associations'.
+
+# Tiny vs. huge
+
+Load the packages used, load tiny/huge numbers dataset and give it a shorter name for easier coding:
+
+```{r packages_data, message = FALSE}
+
+# Packages:
+library(tidyverse)    # Data processing and visualisation
+library(tidyr)    # Data processing and visualisation
+library(dplyr)    # Writing for loops 
+library(lme4)   # Fitting logistic regression models
+library(effects)    # Plotting logistic regression models
+
+# Data:
+(size <- read_csv('tinyhuge_alldata_coded.csv'))
+
+```
+
+Reduce dataset to only those videos which were analysable from a gestural perspective:
+
+```{r exclusion}
+
+# Overall:
+nrow(size)
+
+# HasPhrase == "yes": 
+size <- filter(size, HasPhrase != "no")
+nrow(size)    
+
+# SpeakerVisible == "yes": 
+size <- filter(size, SpeakerVisible != "no")
+nrow(size)    
+
+# HandsVisibleGenerous == "one" or "both": 
+size <- filter(size, HandsVisibleGenerous != "neither")
+nrow(size)    
+
+# HandsFree == "one" or "both":
+size <- filter(size, HandsFree != "neither")
+nrow(size)    
+
+# Negated == 'NA' or "no":
+size <- filter(size, is.na(Negated) | Negated != "yes")
+nrow(size)    
+
+# ContextMove == 'NA' or 'yes' videos:
+size <- filter(size, is.na(ContextMove) | ContextMove != "no") 
+nrow(size)    
+
+```
+
+Find out which speakers appear in the dataset more than once so duplicate videos can be removed manually:
+
+```{r duplicate}
+
+n_occur <- data.frame(table(size$SpeakerName))    # Create table of all speakers
+filter(n_occur, Freq > 1)   # Filter to only those speakers that appear more than once
+
+```
+
+Remove duplicated videos from dataset:
+
+```{r rmv_duplicate}
+
+size <- filter(size, is.na(Duplicated) | Duplicated != "yes") 
+nrow(size) 
+
+```
+
+Create a plot showing reduction in size of dataset from 804 videos to 195 videos:
+
+```{r exclusion_plot}
+
+# Create dataframe:
+reduc <- data.frame(
+  c("Overall", "Has Phrase", "Speaker Visible", "Hands Visible", "Hands Free", "Not Negated", "Gesture Propensity", "Not Duplicated"),
+  c(804, 746, 553, 272, 253, 246, 244, 195))
+
+# Preliminary work to make graph:
+colnames(reduc) = c("level", "videos")    # Change column names
+reduc$level <- factor(reduc$level, levels = c("Not Duplicated", "Gesture Propensity", "Not Negated", "Hands Free", "Hands Visible", "Speaker Visible", "Has Phrase", "Overall"))    # Create factor and order levels
+bold.24.text <- element_text(size = 24, face = "bold")    # Create font style for axis titles
+bold.21.text <- element_text(size = 19, face = "bold")    # Create font style for legend title
+black.18.text <- element_text(size = 18, color = "black")    # Create font style for axis labels
+
+# Make graph:
+reduc %>%
+  ggplot(aes(x = reduc$level, y = reduc$videos, fill = reduc$videos)) + 
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  coord_flip() + 
+  theme_classic() +
+  xlab('Exclusion Level') + 
+  ylab('Number of Videos') +
+  theme(axis.title = bold.24.text, axis.text.y = element_text(size = 17)) +
+  theme(axis.text = black.18.text) +
+  theme(axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0))) +
+  theme(axis.title.x = element_text(margin = margin(t = 20, r = 0, b = 0, l = 0))) +
+  scale_fill_gradient(low = "snow2", high = "midnightblue")
+
+```
+
+Check how many unique speakers there are in dataset:
+
+```{r speakers}
+
+length(unique(size$SpeakerName))
+
+```
+
+## Hand configuration: tiny/huge
+
+Let's now look at hand configuration for each phrase. We hypothesise that speakers will perform proportionally more closed gestures when saying 'tiny numbers' and proportionally more open gestures when saying 'huge numbers'.
+
+```{r config}
+
+size2 <- filter(size, HandConfig != "object")    # Remove 'object' values
+(xtab <- table(size2$Phrase, size2$HandConfig))    # Raw counts
+round(prop.table(xtab, 1), 3) * 100    # Row-wise percentages
+
+```
+
+Make a plot showing these results:
+
+```{r config_plot}
+
+# Preliminary work to make graph:
+prop.table <- prop.table(xtab, 1)    # Row-wise percentages
+xtab <- as.data.frame(prop.table)   # Turn table into dataframe
+as.numeric(xtab$Freq)   # Turn Frequency into numeric variable
+xtab$Var1 <- factor(xtab$Var1, levels = c("tiny_number", "huge_number"))   # Turn x-axis variables into a factor and re-order variables
+xtab$Var2 <- factor(xtab$Var2, levels = c('open', 'closed'))    # Turn legend variables into a factor
+
+# Make graph:
+xtab %>%
+  ggplot(aes(x = xtab$Var1, y = Freq, fill = factor(Var2))) + 
+  geom_bar(stat = "identity") + 
+  theme_classic() +
+  xlab('Phrase') + 
+  ylab('Proportion') +
+  theme(axis.title = bold.24.text, legend.text = element_text(size = 17), legend.title = bold.21.text) +
+  theme(axis.text = black.18.text, axis.text.x = element_text(face = "italic")) +
+  theme(axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0))) +
+  theme(axis.title.x = element_text(margin = margin(t = 20, r = 0, b = 0, l = 0))) +
+  scale_fill_manual(values = c('dodgerblue4', 'firebrick'), breaks = c("closed","open"), name = "Hand Configuration", labels = c("Closed", "Open")) + 
+  scale_x_discrete(labels = c('tiny', 'huge'))
+
+```
+
+These descriptive statistics would seem to support our hypothesis. Let's check this with logistic regression:
+
+```{r config_LR}
+
+# Preliminaries:
+size2$Phrase <- factor(size2$Phrase, levels = c("tiny_number", "huge_number"))    # Turn Phrase into a factor and re-order levels
+size2$HandConfig <- as.factor(size2$HandConfig)   # Turn HandConfig into a factor  
+
+# Input, summarise and plot logistic regression model:
+summary(LR <- glm(HandConfig ~ Phrase, data = size2, family = "binomial"))   
+plot(allEffects(LR), type = "response", ylim = c(0,1))   # Plot logistic regression model
+
+```
+
+This logistic regression model shows that speakers were less likely overall to produce closed gestures than open gestures; but, more importantly, in line with our hypothesis, speakers were more likely to produce open gestures when saying 'huge number' than when saying 'tiny number', and vice versa.
+
+However, because some speakers appeared in the dataset more than once, the independence assumption of this model is violated. To account for this, let's run a for loop that simulates this test again 1000 times with random samples containing only unique speakers: 
+
+```{r config_LR_for}
+
+set.seed(13)    # Make example reproducible
+nsim <- 1000    # Create object containing information about number of simulations
+loop_p <- numeric(length = nsim)    # Create numeric object to store p-values from simulations
+
+for (i in 1:nsim) {
+  size_loop <- sample_n(size2, size = nrow(size2))
+  size_reduc <- filter(size_loop, !duplicated(SpeakerName))
+  summary(LR <- glm(HandConfig ~ Phrase, data = size_reduc, family = "binomial"))
+  loop_p[i] <- summary(LR)$coefficients[2,4]}
+
+sum(loop_p < 0.05)    # Find number of p-values less than 0.05
+
+```
+
+All 1000 samples returned a statistically reliable result.
+
+Out of interest, let's see what specific types of closed gestures speakers used:
+
+```{r closed}
+
+# Pinch type:
+(xtab <- table(size2$Phrase, size2$PinchType))
+round(prop.table(xtab, 1), 3) * 100
+
+# Pinkie curl:
+(xtab <- table(size2$Phrase, size2$PinkieCurl))
+round(prop.table(xtab, 1), 3) * 100
+
+```
+
+Interestingly, most of the closed gestures for 'huge number' were actually made with a clenched fist, which arguably does not imply any sort of size. Hardly any speakers gestured with a clenched fist when saying 'tiny number'. For 'tiny number', speakers were most likely to use a pinch gesture, followed by a hand configuration resembling a lobster claw. The figures above for PinkieCurl don't reveal any notable differences.
+
+## Vertical movement: tiny/huge
+
+Let's now look at vertical movement for each phrase. We hypothesise that speakers will perform proportionally more downwards-moving gestures when saying 'tiny numbers' and proportionally more upwards-moving gestures when saying 'huge numbers'.
+
+```{r vertical}
+
+(xtab <- table(size$Phrase, size$MovementVertical))    # Raw counts
+round(prop.table(xtab, 1), 3) * 100    # Row-wise percentages
+
+```
+
+These descriptive statistics suggest that the opposite is true: speakers actually produced proportionally more downwards-moving gestures when saying 'huge number', and proportionally more upwards-moving gestures when saying 'tiny number'. On a side note, most gestures overall were downwards-moving, perhaps due to the presence of beat gestures in the dataset, which may often contain a downwards-moving component
+
+Let's check this with a logistic regression model:
+
+```{r vertical_LR}
+
+# Preliminaries:
+size$Phrase <- factor(size$Phrase, levels = c("tiny_number", "huge_number"))    # Turn Phrase into a factor and re-order levels
+size$MovementVertical <- as.factor(size$MovementVertical)   # Turn MovementVertical into a factor  
+
+# Input, summarise and plot logistic regression model:
+summary(LR <- glm(MovementVertical ~ Phrase, data = size, family = "binomial"))   
+plot(allEffects(LR), type = "response", ylim = c(0,1))   # Plot logistic regression model
+
+```
+
+This logistic regression model instead suggests that there is no statistically reliable relationship between phrase and vertical movement. 
+
+## One-handed vs. both-handed: tiny/huge
+
+Let's now look at one-handed versus both-handed gestures for each phrase. We hypothesise that speakers will produce proportionally more both-handed gestures when saying 'huge number', and proportionally more one-handed gestures when saying 'tiny number', in line with the principle of articulatory plurality.
+
+```{r one_both}
+
+# Filter dataset to only those videos where both the speakers' hands are free to gesture:
+size2 <- filter(size, HandsFree %in% c('both', 'both/object', 'both/oneobject'))    # HandsFree == 'both'
+
+# Add column comparing one-handed versus both-handed gestures:
+size2 <- mutate(size2, OneVsBoth = ifelse(WhichHand %in% c("L", "R"), "one", "both")) 
+
+# Check that it's worked by randomly sampling dataset:
+set.seed(13)    # Make example reproducible
+sample_n(size2, 10) %>%
+  select(WhichHand, OneVsBoth)
+
+# Look at raw counts and row-wise percentages
+(xtab <- table(size2$Phrase, size2$OneVsBoth))    # Raw counts
+round(prop.table(xtab, 1), 3) * 100    # Row-wise percentages
+
+```
+
+A look at these descriptive statistics suggests that our hypothesis may be valid. Before we check this, let's also look at one-handed versus both-handed gestures across noun plurality, which is another way of investigating articulatory plurality. We hypothesise that speakers will produce proportionally more both-handed gestures alongside plural nouns (standards), and proportionally more one-handed gestures alongside singular nouns (standard).
+
+```{r plural}
+
+(xtab <- table(size2$NounPlural, size2$OneVsBoth))    # Raw counts
+round(prop.table(xtab, 1), 3) * 100    # Row-wise percentages
+
+```
+
+Let's now look at whether speakers gesture with one or both hands as a function of phrase and noun plurality:
+
+```{r one_both_LR}
+
+# Preliminaries:
+size2$Phrase <- factor(size2$Phrase, levels = c("tiny_number", "huge_number"))    # Turn Phrase into a factor and re-order levels
+size2$NounPlural <- as.factor(size2$NounPlural)     # Turn NounPlural into a factor 
+size2$OneVsBoth <- factor(size2$OneVsBoth, levels = c("one", "both"))   # Turn MovementVertical into a factor and re-order levels
+
+# Input, summarise and plot logistic regression model:
+summary(LR <- glm(OneVsBoth ~ Phrase + NounPlural, data = size2, family = "binomial"))   
+plot(allEffects(LR), type = "response", ylim = c(0,1))   # Plot logistic regression model
+
+```
+
+This model reveals no statistically reliable relationship between whether a speaker gestures with one or both hands and phrase or noun plurality.
+
+## Orders of magnitude: tiny/huge
+
+Let's now look at orders of magnitude by creating an additional column in the dataset that takes the logarithmic value in powers of ten of the QuantityValue column:
+
+```{r log}
+
+size2 <- filter(size, QuantityType == 'number')   # Only look at 'number' values
+size2$QuantityValue <- as.numeric(size2$QuantityValue)    # Turn QuantityValue into numeric vector
+size2 <- mutate(size2, Magnitude = log10(QuantityValue))    # Create column taking the log10 of QuantityValue
+select(size2, QuantityValue, Magnitude)    # Look at QuantityValue and Magnitude columns
+
+```
+
+Now, let's look at palm orientation for each phrase:
+
+```{r palm}
+
+(xtab <- table(size$Phrase, size$PalmOrientation))    # Raw counts
+round(prop.table(xtab, 1), 3) * 100    # Row-wise percentages
+
+```
+
+Not much interesting going on. Most gestures are inward. There are proportionally more upwards-facing gestures for 'tiny number', and proportionally more backwards-facing gestures for 'huge number'.
+
+# Low vs. high
+
+Load low/high numbers dataset and give it a shorter name for easier coding:
+
+```{r packages_data_2, message = FALSE}
+
+(height <- read_csv('highlow_alldata_coded.csv'))
+
+```
+
+Reduce dataset to only those videos which were analysable from a gestural perspective:
+
+```{r exclusion_2}
+
+# Overall:
+nrow(height)
+
+# HasPhrase == "yes": 
+height <- filter(height, HasPhrase != "no")
+nrow(height)    # 1280 videos
+
+# SpeakerVisible == "yes": 
+height <- filter(height, SpeakerVisible != "no")
+nrow(height)    # 950 videos
+
+# HandsVisibleGenerous == "one" or "both": 
+height <- filter(height, HandsVisibleGenerous != "neither")
+nrow(height)    # 499 videos
+
+# HandsFree == "one" or "both":
+height <- filter(height, HandsFree != "neither")
+nrow(height)    # 425 videos
+
+# Negated == 'NA' or "no":
+height <- filter(height, is.na(Negated) | Negated != "yes")
+nrow(height)    # 410 videos
+
+# ContextMove == 'NA' or 'yes' videos:
+height <- filter(height, is.na(ContextMove) | ContextMove != "no") 
+nrow(height)    # 387 videos
+
+```
+
+Find out which speakers appear in the dataset more than once so duplicated videos can be removed manually:
+
+```{r duplicate_2}
+
+n_occur <- data.frame(table(height$SpeakerName))    # Create table of all speakers
+filter(n_occur, Freq > 1 & Var1 != 'no')   # Filter to only those speakers that appear more than once and remove 'no' values
+
+```
+
+Remove duplicated videos from dataset:
+
+```{r rmv_duplicate_2}
+
+height <- filter(height, is.na(Duplicated) | Duplicated != "yes") 
+nrow(height)  
+
+```
+
+Create a plot showing reduction in size of dataset from 869 videos to 165 videos:
+
+```{r exclusion_plot_2}
+
+# Create dataframe:
+reduc <- data.frame(
+  c("Overall", "Has Phrase", "Speaker Visible", "Hands Visible", "Hands Free", "Not Negated", "Gesture Propensity", "Not Duplicated"),
+  c(869, 813, 530, 214, 176, 174, 165, 165))
+
+# Preliminary work to make graph:
+colnames(reduc) = c("level", "videos")    # Change column names
+reduc$level <- factor(reduc$level, levels = c("Not Duplicated", "Gesture Propensity", "Not Negated", "Hands Free", "Hands Visible", "Speaker Visible", "Has Phrase", "Overall"))    # Create factor and order levels
+bold.24.text <- element_text(size = 24, face = "bold")    # Create font style for axis titles
+bold.21.text <- element_text(size = 19, face = "bold")    # Create font style for legend title
+black.18.text <- element_text(size = 18, color = "black")    # Create font style for axis labels
+
+# Make graph:
+reduc %>%
+  ggplot(aes(x = reduc$level, y = reduc$videos, fill = reduc$videos)) + 
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  coord_flip() + 
+  theme_classic() +
+  xlab('Exclusion Level') + 
+  ylab('Number of Videos') +
+  theme(axis.title = bold.24.text, axis.text.y = element_text(size = 17)) +
+  theme(axis.text = black.18.text) +
+  theme(axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0))) +
+  theme(axis.title.x = element_text(margin = margin(t = 20, r = 0, b = 0, l = 0))) +
+  scale_fill_gradient(low = "linen", high = "firebrick")
+
+```
+
+Check how many unique speakers there are in dataset:
+
+```{r speakers_2}
+
+length(unique(height$SpeakerName))
+
+```
+
+## Vertical movement: low/high
+
+Let's now look at vertical movement for each phrase. We hypothesise that speakers will produce proportionally more downwards-moving gestures when saying 'low number' and proportionally more upwards-moving gestures when saying 'high number'.
+
+```{r vertical_2}
+
+(xtab <- table(height$Phrase, height$MovementVertical))    # Raw counts
+round(prop.table(xtab, 1), 3) * 100    # Row-wise percentages
+
+```
+
+Create plot to show these figures:
+
+```{r movement_plot}
+
+# Preliminary work to make graph:
+prop.table <- prop.table(xtab, 1)    # Row-wise percentages
+xtab <- as.data.frame(prop.table)   # Turn table into dataframe
+as.numeric(xtab$Freq)   # Turn Frequency into numeric variable
+xtab$Var1 <- factor(xtab$Var1, levels = c("low_number", "high_number"))   # Turn x-axis variables into a factor and re-order variables
+xtab$Var2 <- factor(xtab$Var2, levels = c('up', 'down'))    # Turn legend variables into a factor
+
+# Make graph:
+xtab %>%
+  ggplot(aes(x = xtab$Var1, y = Freq, fill = factor(Var2))) + 
+  geom_bar(stat = "identity") + 
+  theme_classic() +
+  xlab('Phrase') + 
+  ylab('Proportion') +
+  theme(axis.title = bold.24.text, legend.text = element_text(size = 17), legend.title = bold.21.text) +
+  theme(axis.text = black.18.text, axis.text.x = element_text(face = "italic")) +
+  theme(axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0))) +
+  theme(axis.title.x = element_text(margin = margin(t = 20, r = 0, b = 0, l = 0))) +
+  scale_fill_manual(values = c('dodgerblue4', 'firebrick'), breaks = c("up","down"), name = "Vertical Movement", labels = c("Up", "Down")) + 
+  scale_x_discrete(labels = c('low', 'high'))
+
+```
+
+These descriptive statistics suggest that, although downwards-moving gestures were more prevalent overall, downwards-moving gestures were in fact preferred for the phrase 'low number' compared to 'high number'. Let's check this with logistic regression:
+
+```{r vertical_LR_2}
+
+# Preliminaries:
+height$Phrase <- factor(height$Phrase, levels = c("low_number", "high_number"))    # Turn Phrase into a factor and re-order levels
+height$MovementVertical <- as.factor(height$MovementVertical)   # Turn MovementVertical into a factor  
+
+# Input, summarise and plot logistic regression model:
+summary(LR <- glm(MovementVertical ~ Phrase, data = height, family = "binomial"))   
+plot(allEffects(LR), type = "response", ylim = c(0,1))   # Plot logistic regression model
+
+```
+
+These results confirm our above interpretation of the descriptive statistics. Let's now sample the dataset 1000 times with only unique speakers and perform this test again:
+
+```{r vertical_LR_2_for}
+
+set.seed(13)    # Make example reproducible
+nsim <- 1000    # Create object containing information about number of simulations
+loop_p <- numeric(length = nsim)    # Create numeric object to store p-values from simulations
+
+for (i in 1:nsim) {
+  height_loop <- sample_n(height, size = nrow(height))
+  height_reduc <- filter(height_loop, !duplicated(SpeakerName))
+  summary(LR <- glm(MovementVertical ~ Phrase, data = height_reduc, family = "binomial"))
+  loop_p[i] <- summary(LR)$coefficients[2,4]}
+
+sum(loop_p < 0.05)    # Find number of p-values less than 0.05
+
+```
+
+868 samples returned a statistically reliable result, which suggests that although repeated speakers may have contributed to the effect we observed overall, this effect is still fairly robust. Perhaps this effect is less robust than the tiny-closed and huge-open hand gestures we saw because the adjectives 'low' and 'high' do not themselves encode vertical movement.
+
+## Hand configuration: low/high
+
+Now, let's look at hand configuration for each phrase. We hypothesise that speakers will produce proportionally more closed gestures when saying 'low number', and proportionally more open gestures when saying 'high number'. 
+
+```{r config_2}
+
+height2 <- filter(height, HandConfig %in% c("closed", "open"))    # Remove 'object' and 'object/open' values
+(xtab <- table(height2$Phrase, height2$HandConfig))    # Raw counts
+round(prop.table(xtab, 1), 3) * 100    # Row-wise percentages
+
+```
+
+These are only small differences, but there is a slight trend in the direction of our hypothesis. Let's check this with logistic regression:
+
+```{r config_2_LR}
+
+# Preliminaries:
+height2$Phrase <- factor(height2$Phrase, levels = c("low_number", "high_number"))    # Turn Phrase into a factor and re-order levels
+height2$HandConfig <- as.factor(height2$HandConfig)   # Turn MovementVertical into a factor  
+
+# Input, summarise and plot logistic regression model:
+summary(LR <- glm(HandConfig ~ Phrase, data = height2, family = "binomial"))   
+plot(allEffects(LR), type = "response", ylim = c(0,1))   # Plot logistic regression model
+
+```
+
+Unsurprisingly due to the small differences, this test reveals no statistically reliable effect.
+
+Out of interest, let's see what specific types of closed gestures speakers used:
+
+```{r closed_2}
+
+# Pinch type:
+(xtab <- table(height2$Phrase, height2$PinchType))
+round(prop.table(xtab, 1), 3) * 100
+
+# Pinkie curl:
+(xtab <- table(height2$Phrase, height2$PinkieCurl))
+round(prop.table(xtab, 1), 3) * 100
+
+```
+
+The numbers here aren't really high enough to make any clear inferences (there weren't many closed gestures overall in this dataset), but there doesn't seem to be a massive difference between 'low number' and 'high number', which reinforces the previous result. People didn't see to have a small-big schema in mind when using these phrases.
+
+## One-handed vs. both-handed: low/high
+
+Let's now look at one-handed versus both-handed gestures for each phrase. We hypothesise that speakers will produce proportionally more both-handed gestures when saying 'high number', and proportionally more one-handed gestures when saying 'low number', in line with the principle of articulatory plurality.
+
+```{r one_both_2}
+
+# Filter dataset to only those videos where both the speakers' hands are free to gesture:
+height2 <- filter(height, HandsFree %in% c('both', 'both/object', 'both/oneobject'))    # HandsFree == 'both'
+
+# Add column comparing one-handed versus both-handed gestures:
+height2 <- mutate(height2, OneVsBoth = ifelse(WhichHand %in% c("L", "R"), "one", "both")) 
+
+# Check to see if it's worked by randomly sampling dataset:
+set.seed(13)    # Make example reproducible
+sample_n(height2, 10) %>%
+  select(WhichHand, OneVsBoth)
+
+# Look at raw counts and row-wise percentages
+(xtab <- table(height2$Phrase, height2$OneVsBoth))    # Raw counts
+round(prop.table(xtab, 1), 3) * 100    # Row-wise percentages
+
+```
+
+The opposite actually appears to be true: speakers produced proportionally more both-handed gestures when saying 'low number', and proportionally more one-handed gestures when saying 'high number'. 
+
+Before we check this with logistic regression, let's look at whether speakers produce one- or both-handed gestures as a function of noun plurality, which is another way of examining articulatory plurality. We hypothesise that speakers will produce proportionally more one-handed gestures when using a singular noun ('number'), and proportionally more both-handed gestures when using a plural noun ('numbers').
+
+```{r plural_2}
+
+(xtab <- table(height2$NounPlural, height2$OneVsBoth))    # Raw counts
+round(prop.table(xtab, 1), 3) * 100    # Row-wise percentages
+
+```
+
+Again, these descriptive statistics actually show a trend in the opposite direction of our hypothesis. Let's now look at whether speakers gesture with one or both hands as a function of phrase and noun plurality:
+
+```{r one_both_LR_2}
+
+# Preliminaries:
+height2$Phrase <- factor(height2$Phrase, levels = c("low_number", "high_number"))    # Turn Phrase into a factor and re-order levels
+height2$NounPlural <- as.factor(height2$NounPlural)     # Turn NounPlural into a factor 
+height2$OneVsBoth <- factor(height2$OneVsBoth, levels = c("one", "both"))   # Turn MovementVertical into a factor and re-order levels
+
+# Input, summarise and plot logistic regression model:
+summary(LR <- glm(OneVsBoth ~ Phrase + NounPlural, data = height2, family = "binomial"))   
+plot(allEffects(LR), type = "response", ylim = c(0,1))   # Plot logistic regression model
+
+```
+
+This logistic regression model reveals no statistically reliable trend in either direction.
+
+## Orders of magnitude: low/high
+
+Let's now look at orders of magnitude by creating an additional column in the dataset that takes the logarithmic value in powers of ten of the QuantityValue column:
+
+```{r log_2}
+
+height2 <- filter(height, QuantityType == 'number')   # Only look at 'number' values
+height2$QuantityValue <- as.numeric(height2$QuantityValue)    # Turn QuantityValue into numeric vector
+height2 <- mutate(height2, Magnitude = log10(QuantityValue))    # Create column taking the log10 of QuantityValue
+select(height2, QuantityValue, Magnitude)   # Look at QuantityValue and Magnitude columns
+
+```
+
+Look at palm orientation for each phrase:
+
+```{r palm_2}
+
+(xtab <- table(height$Phrase, height$PalmOrientation))    # Raw counts
+round(prop.table(xtab, 1), 3) * 100    # Row-wise percentages
+
+```
+
+Again, there's nothing much interesting going on here.
+
+# Tests on both datasets
+
+Join both tibbles:
+
+```{r join_tbl}
+
+# Join tibbles
+full <- full_join(size, height)   
+
+# Check that it's worked:
+set.seed(13)    # Make example reproducible
+sample_n(full, 10) %>%
+  select(Phrase)
+```
+
+## Gesture co-occurrence:
+
+Let's compare gesture co-occurrence per dataset. We hypothesise that speakers will be more likely to gesture when saying 'tiny/huge number' because these descriptors are more extreme than 'low/high number'. 
+
+```{r occur}
+
+# Create new column for tiny and huge vs. low and high:
+full <- mutate(full, SizeVsHeight = ifelse(Phrase %in% c('tiny_number', 'huge_number'), 'size', 'height'))
+
+# Check that it's worked:
+set.seed(13)    # Make example reproducible
+sample_n(full, 10) %>%
+  select(Phrase, SizeVsHeight)
+
+# Compare gesture co-occurrence across size and height phrases:
+(xtab <- table(full$SizeVsHeight, full$HandsMoving))    # Raw counts
+round(prop.table(xtab, 1), 3) * 100    # Row-wise percentages
+
+```
+
+Descriptively, it does seem to be the case that speakers gesture more when saying 'tiny/huge number'. Let's check this with a logistic regression model:
+
+```{r occur_LR}
+
+# Preliminaries:
+full$SizeVsHeight <- as.factor(full$SizeVsHeight)    # Turn SizeVsHeight into a factor 
+full$HandsMoving <- as.factor(full$HandsMoving)     # Turn HandsMoving into a factor 
+
+# Input, summarise and plot logistic regression model:
+summary(LR <- glm(HandsMoving ~ SizeVsHeight, data = full, family = "binomial"))   
+plot(allEffects(LR), type = "response", ylim = c(0,1))   # Plot logistic regression model
+
+```
+
+This model supports our above interpretation of the data.
+
+Out of interest, let's look at gesture co-occurrence across individual phrases:
+
+```{r co-occur_phrase}
+
+(xtab <- table(full$Phrase, full$HandsMoving))    # Raw counts
+round(prop.table(xtab, 1), 3) * 100    # Row-wise percentages
+
+```
+
+Not too much going on here except for the difference between the 'size' and 'height' datasets we already witnessed. Let's make a graph to show this:
+
+```{r co_occur plot}
+
+# Preliminary work to make graph:
+prop.table <- prop.table(xtab, 1)    # Row-wise percentages
+xtab <- as.data.frame(prop.table)   # Turn table into dataframe
+as.numeric(xtab$Freq)   # Turn Frequency into numeric variable
+xtab$Var1 <- factor(xtab$Var1, levels = c("tiny_number", "huge_number", "low_number", "high_number"))   # Re-order x-axis variables
+xtab$Var2 <- factor(xtab$Var2, levels = c("no", "yes"))    # Re-order legend variables
+
+# Make graph:
+xtab %>%
+  ggplot(aes(x = xtab$Var1, y = Freq, fill = factor(Var2))) + 
+  geom_bar(stat = "identity") + 
+  theme_classic() +
+  xlab('Phrase') + 
+  ylab('Proportion') +
+  theme(axis.title = bold.24.text, legend.text = element_text(size = 17), legend.title = bold.21.text) +
+  theme(axis.text = black.18.text, axis.text.x = element_text(face = "italic")) +
+  theme(axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0))) +
+  theme(axis.title.x = element_text(margin = margin(t = 20, r = 0, b = 0, l = 0))) +
+  scale_fill_manual(values = c('grey75', 'forestgreen'), breaks = c("yes","no"), name = "Contains Gesture?", labels = c("Yes", "No")) + 
+  scale_x_discrete(labels = c('tiny', 'huge', 'low', 'high'))
+
+```
