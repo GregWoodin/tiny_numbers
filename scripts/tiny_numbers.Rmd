@@ -132,6 +132,33 @@ round(prop.table(xtab, 1), 3) * 100    # Row-wise percentages
 
 ```
 
+Make a plot showing these results:
+
+```{r config_plot}
+
+# Preliminary work to make graph:
+prop.table <- prop.table(xtab, 1)    # Row-wise percentages
+xtab <- as.data.frame(prop.table)   # Turn table into dataframe
+as.numeric(xtab$Freq)   # Turn Frequency into numeric variable
+xtab$Var1 <- factor(xtab$Var1, levels = c("tiny_number", "huge_number"))   # Turn x-axis variables into a factor and re-order variables
+xtab$Var2 <- factor(xtab$Var2, levels = c('open', 'closed'))    # Turn legend variables into a factor
+
+# Make graph:
+xtab %>%
+  ggplot(aes(x = xtab$Var1, y = Freq, fill = factor(Var2))) + 
+  geom_bar(stat = "identity") + 
+  theme_classic() +
+  xlab('Phrase') + 
+  ylab('Proportion') +
+  theme(axis.title = bold.24.text, legend.text = element_text(size = 17), legend.title = bold.21.text) +
+  theme(axis.text = black.18.text, axis.text.x = element_text(face = "italic")) +
+  theme(axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0))) +
+  theme(axis.title.x = element_text(margin = margin(t = 20, r = 0, b = 0, l = 0))) +
+  scale_fill_manual(values = c('dodgerblue4', 'firebrick'), breaks = c("closed","open"), name = "Hand Configuration", labels = c("Closed", "Open")) + 
+  scale_x_discrete(labels = c('tiny', 'huge'))
+
+```
+
 These descriptive statistics would seem to support our hypothesis. Let's check this with logistic regression:
 
 ```{r config_LR}
@@ -395,6 +422,33 @@ Let's now look at vertical movement for each phrase. We hypothesise that speaker
 
 (xtab <- table(height$Phrase, height$MovementVertical))    # Raw counts
 round(prop.table(xtab, 1), 3) * 100    # Row-wise percentages
+
+```
+
+Create plot to show these figures:
+
+```{r movement_plot}
+
+# Preliminary work to make graph:
+prop.table <- prop.table(xtab, 1)    # Row-wise percentages
+xtab <- as.data.frame(prop.table)   # Turn table into dataframe
+as.numeric(xtab$Freq)   # Turn Frequency into numeric variable
+xtab$Var1 <- factor(xtab$Var1, levels = c("low_number", "high_number"))   # Turn x-axis variables into a factor and re-order variables
+xtab$Var2 <- factor(xtab$Var2, levels = c('up', 'down'))    # Turn legend variables into a factor
+
+# Make graph:
+xtab %>%
+  ggplot(aes(x = xtab$Var1, y = Freq, fill = factor(Var2))) + 
+  geom_bar(stat = "identity") + 
+  theme_classic() +
+  xlab('Phrase') + 
+  ylab('Proportion') +
+  theme(axis.title = bold.24.text, legend.text = element_text(size = 17), legend.title = bold.21.text) +
+  theme(axis.text = black.18.text, axis.text.x = element_text(face = "italic")) +
+  theme(axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0))) +
+  theme(axis.title.x = element_text(margin = margin(t = 20, r = 0, b = 0, l = 0))) +
+  scale_fill_manual(values = c('dodgerblue4', 'firebrick'), breaks = c("up","down"), name = "Vertical Movement", labels = c("Up", "Down")) + 
+  scale_x_discrete(labels = c('low', 'high'))
 
 ```
 
