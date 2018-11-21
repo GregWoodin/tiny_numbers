@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-This is the code used for the analysis reported in 'Tiny numbers are actually tiny: Precision grips and size-based quantity associations'.
+This is the code used for the analysis reported in 'Tiny numbers are actually tiny: Spatial associations of quantity in gesture'.
 
 # Tiny vs. huge
 
@@ -23,6 +23,7 @@ library(tidyr)    # Data processing and visualisation
 library(dplyr)    # Writing for loops 
 library(lme4)   # Fitting logistic regression models
 library(effects)    # Plotting logistic regression models
+library(brms)   # Fitting Bayesian models
 
 # Data:
 (size <- read_csv('tinyhuge_alldata_coded.csv'))
@@ -154,7 +155,7 @@ xtab %>%
   theme(axis.text = black.18.text, axis.text.x = element_text(face = "italic")) +
   theme(axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0))) +
   theme(axis.title.x = element_text(margin = margin(t = 20, r = 0, b = 0, l = 0))) +
-  scale_fill_manual(values = c('dodgerblue4', 'firebrick'), breaks = c("closed","open"), name = "Hand Configuration", labels = c("Closed", "Open")) + 
+  scale_fill_manual(values = c('dodgerblue4', 'firebrick'), breaks = c("open","closed"), name = "Hand Configuration", labels = c("Open", "Closed")) + 
   scale_x_discrete(labels = c('tiny', 'huge'))
 
 ```
@@ -173,7 +174,7 @@ plot(allEffects(LR), type = "response", ylim = c(0,1))   # Plot logistic regress
 
 ```
 
-This logistic regression model shows that speakers were less likely overall to produce closed gestures than open gestures; but, more importantly, in line with our hypothesis, speakers were more likely to produce open gestures when saying 'huge number' than when saying 'tiny number', and vice versa.
+This logistic regression model shows that, in line with our hypothesis, speakers were more likely to produce open gestures when saying 'huge number' than when saying 'tiny number', and vice versa.
 
 However, because some speakers appeared in the dataset more than once, the independence assumption of this model is violated. To account for this, let's run a for loop that simulates this test again 1000 times with random samples containing only unique speakers: 
 
@@ -293,14 +294,44 @@ This model reveals no statistically reliable relationship between whether a spea
 
 Let's now look at orders of magnitude by creating an additional column in the dataset that takes the logarithmic value in powers of ten of the QuantityValue column:
 
-```{r log}
+```{r log10}
 
 size2 <- filter(size, QuantityType == 'number')   # Only look at 'number' values
 size2$QuantityValue <- as.numeric(size2$QuantityValue)    # Turn QuantityValue into numeric vector
 size2 <- mutate(size2, Magnitude = log10(QuantityValue))    # Create column taking the log10 of QuantityValue
+size2$Magnitude <- as.numeric(substr(size2$Magnitude, 1,2))    # Print only first two digits
 select(size2, QuantityValue, Magnitude)    # Look at QuantityValue and Magnitude columns
 
 ```
+
+Look at Magnitude across Phrase:
+
+```{r mag_phrase}
+
+(xtab <- table(size2$Phrase, size2$Magnitude))    # Raw figures
+round(prop.table(xtab, 1), 3) * 100   # Row-wise percentages
+
+```
+
+Look at HandConfig across Phrase:
+
+```{r mag_config}
+
+(xtab <- table(size2$HandConfig, size2$Magnitude))    # Raw figures
+round(prop.table(xtab, 1), 3) * 100   # Row-wise percentages
+
+```
+
+```{r mag_vert}
+
+(xtab <- table(size2$MovementVertical, size2$Magnitude))    # Raw figures
+round(prop.table(xtab, 1), 3) * 100   # Row-wise percentages
+
+```
+
+This seems to show that whether a speaker describes a number as 'tiny' or 'huge' is dependent on relative rather than absolute quantity. Likewise, whether a speaker uses a closed or open hand shape also seems to depend on relative rather than absolute quantity. Not much can be said about vertical movement because of the low numbers.
+
+## Palm orientation: tiny/huge
 
 Now, let's look at palm orientation for each phrase:
 
@@ -585,14 +616,46 @@ This logistic regression model reveals no statistically reliable trend in either
 
 Let's now look at orders of magnitude by creating an additional column in the dataset that takes the logarithmic value in powers of ten of the QuantityValue column:
 
-```{r log_2}
+```{r logarithm_2}
 
 height2 <- filter(height, QuantityType == 'number')   # Only look at 'number' values
 height2$QuantityValue <- as.numeric(height2$QuantityValue)    # Turn QuantityValue into numeric vector
 height2 <- mutate(height2, Magnitude = log10(QuantityValue))    # Create column taking the log10 of QuantityValue
+height2$Magnitude <- as.numeric(substr(height2$Magnitude, 1,2))    # Print only first two digits
 select(height2, QuantityValue, Magnitude)   # Look at QuantityValue and Magnitude columns
 
 ```
+
+Look at Magnitude across Phrase:
+
+```{r mag_phrase_2}
+
+(xtab <- table(height2$Phrase, height2$Magnitude))    # Raw figures
+round(prop.table(xtab, 1), 3) * 100   # Row-wise percentages
+
+```
+
+Look at HandConfig across Phrase:
+
+```{r mag_config_2}
+
+(xtab <- table(height2$HandConfig, height2$Magnitude))    # Raw figures
+round(prop.table(xtab, 1), 3) * 100   # Row-wise percentages
+
+```
+
+Look at MovementVertical across Phrase:
+
+```{r mag_vert_2}
+
+(xtab <- table(height2$MovementVertical, height2$Magnitude))    # Raw figures
+round(prop.table(xtab, 1), 3) * 100   # Row-wise percentages
+
+```
+
+This seems to show that whether a speaker describes a number as 'low' or 'high' is dependent on relative rather than absolute quantity. Likewise, whether a speaker uses a closed or open hand shape also seems to depend on relative rather than absolute quantity. Not much can be said about vertical movement because of the low numbers.
+
+## Palm orientation: low/high
 
 Look at palm orientation for each phrase:
 
