@@ -16,6 +16,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```
 
+<br>
+
 # Preliminaries
 
 This is the code used for the analysis reported in 'A quantitative gesture analysis of 737 videos and 546 speakers in the TV News Archive'.
@@ -24,10 +26,11 @@ Load packages used, load datasets and give them shorter names for easier coding:
 
 ```{r packages_data, message = FALSE}
 
-library(tidyverse)    # Data processing and visualisation and writing for loops
+library(tidyverse)    # Data processing
 library(lme4)   # Fitting logistic regression models
 library(scales)   # Adding line breaks to plots
 library(car)    # Identifying collinearity issues
+library(gridExtra)    # Arranging plots in a grid
 
 # Data:
 (size <- read_csv('tinyhuge_alldata_coded.csv'))    # 'Tiny/huge number' dataset
@@ -108,7 +111,7 @@ bold.21.text <- element_text(size = 19, face = "bold")    # Create font style fo
 reduc %>%
   ggplot(aes(x = reduc$level, y = reduc$videos, fill = reduc$videos)) + 
   geom_bar(stat = "identity", show.legend = FALSE) + 
-  geom_label(aes(label = videos), vjust = - 0.06, nudge_y = -250, colour = "black", fill = 'white', alpha = 1, show.legend = FALSE) +
+  geom_label(aes(label = videos), vjust = - 0.02, nudge_y = -250, colour = "black", fill = 'white', alpha = 1, show.legend = FALSE) +
   coord_flip() + 
   theme_classic() +
   xlab('Exclusion Level') + 
@@ -130,6 +133,8 @@ Check how many unique speakers there are overall:
 length(unique(size$SpeakerName)) + length(unique(height$SpeakerName)) + length(unique(valence$SpeakerName))
 
 ```
+
+<br>
 
 # Main comparisons
 
@@ -249,6 +254,8 @@ Hardly any difference at all.
 
 Let's see whether duplicated speakers tend to adhere to the closed-open distinction when they use the phrases 'tiny number' and 'huge number'.
 
+<br>
+
 ## Low/high numbers: vertical movement
 
 Let's now look at vertical movement for each phrase. We hypothesise that speakers will produce proportionally more downwards-moving gestures when saying 'low number' and proportionally more upwards-moving gestures when saying 'high number'.
@@ -326,6 +333,8 @@ sum(loop_p < 0.05)    # Find number of p-values less than 0.05
 ```
 
 868 samples returned a statistically reliable result, which suggests that although repeated speakers may have contributed to the effect we observed overall, this effect is still fairly robust. Perhaps this effect is less robust than the 'tiny'-closed and 'huge'-open hand gestures we saw because the adjectives 'low' and 'high' do not themselves encode vertical movement.
+
+<br>
 
 ## Low/high standards: vertical movement
 
@@ -412,6 +421,8 @@ sum(loop_p < 0.05)    # Find number of p-values less than 0.05
 
 All 1000 samples returned a significant result.
 
+<br>
+
 ## Lower/raise the standard: vertical movement
 
 Let's now look at vertical movement for the phrases 'lower the standard' and 'raise the standard'. We hypothesise that speakers will perform proportionally more downwards-moving gestures when saying 'lower the standard' and proportionally more upwards-moving gestures when saying 'raise the standard'.
@@ -462,11 +473,6 @@ xtab %>%
 
 ggsave("verticalmovement_verbstandards.pdf", width = 6.5, height = 4.5)
 
-  #geom_label(aes(x = 1.225, y = 0.647, label = "N = 55"), fill = "white", size = 4) +
-  #geom_label(aes(x = 0.7825, y = 0.353, label = "N = 30"), fill = "white", size = 4) +
-  #geom_label(aes(x = 2.225, y = 0.123, label = "N = 10"), fill = "white", size = 4) +
-  #geom_label(aes(x = 1.7825, y = 0.877, label = "N = 71"), fill = "white", size = 4)
-
 ```
 
 Clearly, speakers were more likely to gesture downwards when using the phrase 'lower the standard', and upwards when using the phrase 'raise the standard'. Let's check this with a logistic regression model.
@@ -502,6 +508,8 @@ sum(loop_p < 0.05)    # Find number of p-values less than 0.05
 
 All 1000 samples returned a significant result. 
 
+<br>
+
 # Other comparisons
 
 We now look at whether speakers express a different metaphor in their gestures than they express in speech.
@@ -534,6 +542,8 @@ summary(LR <- glm(MovementVertical ~ Phrase, data = size, family = "binomial"))
 
 This logistic regression model suggests that there is no statistically reliable relationship between phrase and vertical movement in this instance.
 
+<br>
+
 ## Low/high number: hand configuration
 
 We predict that speakers were be more likely to gesture with a closed hand configuration when saying 'low number', and with an open hand configuration when saying 'high number'.
@@ -560,6 +570,8 @@ summary(LR <- glm(HandConfig ~ Phrase, data = height2, family = "binomial"))
 ```
 
 Unsurprisingly due to the small differences, this test reveals no statistically reliable effect.
+
+<br>
 
 ## Low/high standard: hand configuration
 
@@ -588,6 +600,8 @@ summary(LR <- glm(HandConfig ~ Phrase, data = valence2, family = "binomial"))
 
 This model shows no significant effect of phrase on hand configuration.
 
+<br>
+
 ## Lower/raise the standard: hand configuration
 
 We predict that speakers will be more likely to gesture with a closed hand configuration when saying 'low standard', and with an open hand configuration when saying 'high standard':
@@ -614,6 +628,8 @@ summary(LR <- glm(HandConfig ~ Phrase, data = valence3, family = "binomial"))
 ```
 
 This model shows no significant effect of phrase on hand configuration.
+
+<br>
 
 # Gesture co-occurrence 
 
@@ -648,29 +664,43 @@ round(prop.table(xtab), 3) * 100
 
 ```
 
-Looks like speakers were far more likely to gesture than not. Create plot showing gesture co-occurrence across each phrase (Figure 3).
+Looks like speakers were far more likely to gesture than not. Create plot showing gesture co-occurrence across each phrase (Figures 3a and 3b).
 
 ```{r occur_plot, fig.width = 10, fig.height = 6}
 
-# Descriptive stats:
-xtab <- table(full$Phrase, full$HandsMoving)    # Raw counts
-props <- prop.table(xtab, 1)    # Row-wise percentages
+numbers <- filter(full, Phrase %in% c("tiny_number", "huge_number", "low_number", "high_number"))
+standards <- filter(full, Phrase %in% c("low_standards", "high_standards", "lower_the_standards", "raise_the_standards"))
+
+# Descriptive stats for 'numbers':
+xtab_num <- table(numbers$Phrase, numbers$HandsMoving)    # Raw counts
+props_num <- prop.table(xtab_num, 1)    # Row-wise percentages
+
+# Descriptive stats for 'standards':
+xtab_stan <- table(standards$Phrase, standards$HandsMoving)    # Raw counts
+props_stan <- prop.table(xtab_stan, 1)    # Row-wise percentages
 
 # Turn tables into dataframes and change column names:
-props <- as.data.frame(props)   # Row-wise percentages
-colnames(props) = c("Phrase", "Gesture", "Proportion")    
+props_num <- as.data.frame(props_num)   # Row-wise percentages
+colnames(props_num) = c("Phrase", "Gesture", "Proportion")  
+props_stan <- as.data.frame(props_stan)   # Row-wise percentages
+colnames(props_stan) = c("Phrase", "Gesture", "Proportion")  
 
 # Turn figures into numeric variables:
-as.numeric(props$Proportion)   
- 
-# Re-order variables:
-props$Phrase <- factor(props$Phrase, levels = c("tiny_number", "huge_number", "low_number", "high_number", "low_standards", "high_standards", "lower_the_standards", "raise_the_standards"))   # x-axis
-props$Gesture <- factor(props$Gesture, levels = c("no", "yes"))    # Legend
+as.numeric(props_num$Proportion)  
+as.numeric(props_stan$Proportion)  
 
-# Make graph:
-props %>%
+# Re-order variables:
+props_num$Phrase <- factor(props_num$Phrase, levels = c("tiny_number", "huge_number", "low_number", "high_number"))   # x-axis
+props_num$Gesture <- factor(props_num$Gesture, levels = c("yes", "no"))    # Legend
+props_stan$Phrase <- factor(props_stan$Phrase, levels = c("low_standards", "high_standards", "lower_the_standards", "raise_the_standards"))   # x-axis
+props_stan$Gesture <- factor(props_stan$Gesture, levels = c("yes", "no"))    # Legend
+
+# Make 'numbers' graph:
+plot1 <- 
+  props_num %>%
   ggplot(aes(x = Phrase, y = Proportion, fill = factor(Gesture))) +
-  geom_bar(stat = "identity") +
+  geom_bar(stat = "identity", position = "dodge") +
+  ylim(0, 1) +
   theme_classic() +
   xlab('Phrase') + 
   ylab('Proportion') +
@@ -678,26 +708,46 @@ props %>%
   theme(axis.text = black.13.text, axis.text.x = element_text(face = "italic")) +
   theme(axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0))) +
   theme(axis.title.x = element_text(margin = margin(t = 15, r = 0, b = 0, l = 0))) +
-  scale_fill_manual(values = c('grey75', 'forestgreen'), breaks = c("yes", "no"), name = "Gesture?", labels = c("Yes", "No")) +
-  scale_x_discrete(labels = addline_format(c("tiny number", "huge number", "low number", "high number", "low standard", "high standard", "lower the standard", "raise the standard"))) +
-  geom_label(aes(x = 1, y = 0, label = "N = 88"), fill = "white", size = 4) +
-  geom_label(aes(x = 1, y = 1, label = "N = 6"), fill = "white", size = 4) +
-  geom_label(aes(x = 2, y = 0, label = "N = 82"), fill = "white", size = 4) +
-  geom_label(aes(x = 2, y = 1, label = "N = 12"), fill = "white", size = 4) +
-  geom_label(aes(x = 3, y = 0, label = "N = 57"), fill = "white", size = 4) +
-  geom_label(aes(x = 3, y = 1, label = "N = 22"), fill = "white", size = 4) +
-  geom_label(aes(x = 4, y = 0, label = "N = 65"), fill = "white", size = 4) +
-  geom_label(aes(x = 4, y = 1, label = "N = 20"), fill = "white", size = 4) +
-  geom_label(aes(x = 5, y = 0, label = "N = 83"), fill = "white", size = 4) +
-  geom_label(aes(x = 5, y = 1, label = "N = 15"), fill = "white", size = 4) +
-  geom_label(aes(x = 6, y = 0, label = "N = 70"), fill = "white", size = 4) +
-  geom_label(aes(x = 6, y = 1, label = "N = 18"), fill = "white", size = 4) +
-  geom_label(aes(x = 7, y = 0, label = "N = 101"), fill = "white", size = 4) +
-  geom_label(aes(x = 7, y = 1, label = "N = 7"), fill = "white", size = 4) +
-  geom_label(aes(x = 8, y = 0, label = "N = 76"), fill = "white", size = 4) +
-  geom_label(aes(x = 8, y = 1, label = "N = 6"), fill = "white", size = 4)
+  scale_fill_manual(values = c('forestgreen', 'grey75'), breaks = c("yes", "no"), name = "Gesture?", labels = c("Yes", "No")) +
+  scale_x_discrete(labels = addline_format(c("tiny number", "huge number", "low number", "high number"))) +
+  geom_label(aes(x = 0.7825, y = 0.93617021, label = "N = 88"), fill = "white", size = 4) +
+  geom_label(aes(x = 1.225, y = 0.06382979, label = "N = 6"), fill = "white", size = 4) +
+  geom_label(aes(x = 1.7825, y = 0.87234043, label = "N = 82"), fill = "white", size = 4) +
+  geom_label(aes(x = 2.225, y = 0.12765957, label = "N = 12"), fill = "white", size = 4) +
+  geom_label(aes(x = 2.7825, y = 0.72151899, label = "N = 57"), fill = "white", size = 4) +
+  geom_label(aes(x = 3.225, y = 0.27848101, label = "N = 22"), fill = "white", size = 4) +
+  geom_label(aes(x = 3.7825, y = 0.76470588, label = "N = 65"), fill = "white", size = 4) +
+  geom_label(aes(x = 4.225, y = 0.23529412, label = "N = 20"), fill = "white", size = 4) 
 
-ggsave('gesture_cooccurrence.pdf', width = 10, height = 6)
+ggsave('gesture_cooccurrence_nums.pdf', width = 10, height = 6)
+
+# Make 'standards' graph
+plot2 <- 
+  props_stan %>%
+  ggplot(aes(x = Phrase, y = Proportion, fill = factor(Gesture))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ylim(0, 1) +
+  theme_classic() +
+  xlab('Phrase') + 
+  ylab('Proportion') +
+  theme(axis.title = bold.24.text, legend.text = element_text(size = 17), legend.title = bold.21.text) +
+  theme(axis.text = black.13.text, axis.text.x = element_text(face = "italic")) +
+  theme(axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0))) +
+  theme(axis.title.x = element_text(margin = margin(t = 15, r = 0, b = 0, l = 0))) +
+  scale_fill_manual(values = c('forestgreen', 'grey75'), breaks = c("yes", "no"), name = "Gesture?", labels = c("Yes", "No")) +
+  scale_x_discrete(labels = addline_format(c("low standards", "high standards", "lower the standards", "raise the standards"))) +
+  geom_label(aes(x = 0.7825, y = 0.84693878, label = "N = 83"), fill = "white", size = 4) +
+  geom_label(aes(x = 1.225, y = 0.15306122, label = "N = 15"), fill = "white", size = 4) +
+  geom_label(aes(x = 1.7825, y = 0.79545455, label = "N = 70"), fill = "white", size = 4) +
+  geom_label(aes(x = 2.225, y = 0.20454545, label = "N = 18"), fill = "white", size = 4) +
+  geom_label(aes(x = 2.7825, y = 0.93518519, label = "N = 101"), fill = "white", size = 4) +
+  geom_label(aes(x = 3.225, y = 0.06481481, label = "N = 7"), fill = "white", size = 4) +
+  geom_label(aes(x = 3.7825, y = 0.92682927, label = "N = 76"), fill = "white", size = 4) +
+  geom_label(aes(x = 4.225, y = 0.07317073, label = "N = 6"), fill = "white", size = 4)
+
+ggsave('gesture_cooccurrence_stan.pdf', width = 10, height = 6)
+
+grid.arrange(plot1, plot2)
 
 ```
 
@@ -814,6 +864,8 @@ sum(loop_p < 0.05)    # Find number of p-values less than 0.05
 
 All 1000 samples returned a statistically significant result. 
 
+<br>
+
 # Articulatory plurality
 
 We now look at articulatory plurality. We predict that speakers will be more likely to use two hands to gesture when using plural nouns ('numbers'/'standards'), and to use one hand to gesture when using singular nouns ('number'/'standard').
@@ -897,6 +949,8 @@ vif(LR)   # Lower than 3 == no collinearity
 
 Doesn't look like there was an issue.
 
+<br>
+
 # Orders of magnitude
 
 ## Orders of magnitude: tiny/huge
@@ -943,6 +997,8 @@ round(prop.table(xtab, 1), 3) * 100   # Row-wise percentages
 ```
 
 Absolute magnitude does not seem to predict gesture co-occurrence.
+
+<br>
 
 ## Orders of magnitude: low/high
 
