@@ -92,7 +92,7 @@ nrow(size) + nrow(height) + nrow(valence)
 
 Create a plot showing reduction in size of dataset from 3273 videos to 737 videos (Figure 1):
 
-```{r exclusion_plot}
+```{r exclusion_plot, fig.width = 7.5, fig.height = 4.5}
 
 # Create dataframe:
 reduc <- data.frame(
@@ -122,15 +122,40 @@ reduc %>%
   theme(axis.title.x = element_text(margin = margin(t = 20, r = 0, b = 0, l = 0))) +
   scale_fill_gradient(low = "snow2", high = "midnightblue")
 
-ggsave('exclusion_plot.pdf')
+ggsave('exclusion_plot.pdf', width = 7.5, height = 4.5)
 
 ```
 
-Check how many unique speakers there are overall:
+Also check how many videos there are in each dataset:
+
+```{r videos_each}
+
+# Tiny/huge numbers:
+nrow(size) 
+
+# Low/high numbers:
+nrow(height) 
+
+# Standards:
+nrow(valence)
+
+```
+
+Check how many unique speakers there are in each dataset and overall:
 
 ```{r speakers}
 
-length(unique(size$SpeakerName)) + length(unique(height$SpeakerName)) + length(unique(valence$SpeakerName))
+# Tiny/huge numbers:
+(size_length <- length(unique(size$SpeakerName)))
+
+# Low/high numbers:
+(height_length <- length(unique(height$SpeakerName)))
+
+# Standards:
+(valence_length <- length(unique(valence$SpeakerName)))
+
+# Overall:
+size_length + height_length + valence_length
 
 ```
 
@@ -384,7 +409,7 @@ xtab %>%
   geom_label(aes(x = 2.225, y = 0.595, label = "N = 25"), fill = "white", size = 4) +
   geom_label(aes(x = 1.7825, y = 0.405, label = "N = 17"), fill = "white", size = 4)
 
-ggsave('handconfiguration_height.pdf', width = 6.5, height = 4.5)
+ggsave('verticalmovement_adjstandards.pdf', width = 6.5, height = 4.5)
 
 ```
 
@@ -904,6 +929,7 @@ xtab$Var2 <- factor(xtab$Var2, levels = c("one", "both"))   # Re-order x-axis la
 xtab %>%
   ggplot(aes(x = xtab$Var1, y = Freq, fill = xtab$Var2)) + 
   geom_bar(stat = "identity", position = "dodge") + 
+  ylim(0, 1) +
   theme_classic() +
   xlab('Plurality') +
   ylab('Proportion') +
